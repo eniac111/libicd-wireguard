@@ -1,0 +1,2 @@
+etc/gconf/schemas/libicd-provider-wireguard.schemas
+usr/lib/icd2/libicd_provider_wireguard.so
