@@ -451,6 +451,7 @@ gboolean icd_nw_init(struct icd_nw_api *network_api,
 	priv->state.wireguard_running = FALSE;
 	priv->state.wireguard_up = FALSE;
 	priv->state.wireguard_interface_up = FALSE;
+	priv->state.wireguard_interface_index = -1;
 	priv->state.gconf_transition_ongoing = FALSE;
 	priv->state.dbus_failed_to_start = FALSE;
 

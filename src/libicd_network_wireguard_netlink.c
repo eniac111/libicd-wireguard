@@ -30,7 +30,7 @@
 #include <net/if.h>
 #include <errno.h>
 
-static int read_event(int sockint, char **iface_name, int *iface_status)
+static int read_event(int sockint, char **iface_name, int *iface_status, int *iface_index)
 {
 	int status;
 	int ret = 0;
@@ -69,19 +69,17 @@ static int read_event(int sockint, char **iface_name, int *iface_status)
 		if (header->nlmsg_type == RTM_NEWLINK) {
 			info = NLMSG_DATA(header);
 
-			//fprintf(stderr, "IFF_RUNNING: %d\n", info->ifi_flags & IFF_RUNNING);
-			//fprintf(stderr, "IFF_UP: %d\n", info->ifi_flags & IFF_UP);
+			*iface_index = info->ifi_index;
+			*iface_status = (info->ifi_flags & IFF_RUNNING) ? 1 : 0;
 
-			//fprintf(stderr, "change IFF_RUNNING: %d\n", info->ifi_change & IFF_RUNNING);
-			//fprintf(stderr, "change IFF_UP: %d\n", info->ifi_change & IFF_UP);
 			*iface_name = malloc(IF_NAMESIZE);
 			if (if_indextoname(info->ifi_index, *iface_name) == 0) {
+				fprintf(stderr, "if_indextoname failed\n");
 				free(*iface_name);
 				*iface_name = NULL;
 
 				return 0;
 			}
-			*iface_status = (info->ifi_flags & IFF_RUNNING) ? 1 : 0;
 		}
 	}
 
@@ -95,17 +93,27 @@ static gboolean netlink_cb(GIOChannel * chan, GIOCondition cond, gpointer data)
 
 	int fd;
 	int state = 0;
+	int index = 0;
 	char *iface = NULL;
 
 	fd = g_io_channel_unix_get_fd(chan);
 
-	/* TODO: figure out this logic some more */
+	/* TODO: figure out this logic some more, wrt how many times to call
+	 * read_event */
 	while (1) {
-		int ret = read_event(fd, &iface, &state);
+		int ret = read_event(fd, &iface, &state, &index);
 		fprintf(stderr, "read_event: %d\n", ret);
 
-		if (iface) {
-			fprintf(stderr, "iface: %s, status: %d\n", iface, state);
+		if (state == 0 && index == priv->state.wireguard_interface_index && priv->state.wireguard_interface_up) {
+			network_wireguard_state new_state;
+			memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
+			new_state.wireguard_interface_up = FALSE;
+			new_state.wireguard_interface_index = -1;
+			new_state.wireguard_running = FALSE;
+			wireguard_state_change(priv, NULL, new_state, EVENT_SOURCE_WIREGUARD_DOWN);
+
+		} else if (iface) {
+			fprintf(stderr, "iface: %s (%d), status: %d\n", iface, index, state);
 
 			if (strcmp("icdwg0", iface) == 0) {
 				fprintf(stderr, "wireguard_interface_up: %d\n", priv->state.wireguard_interface_up);
@@ -118,11 +126,14 @@ static gboolean netlink_cb(GIOChannel * chan, GIOCondition cond, gpointer data)
 					network_wireguard_state new_state;
 					memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
 					new_state.wireguard_interface_up = TRUE;
+					new_state.wireguard_interface_index = index;
 					wireguard_state_change(priv, NULL, new_state, EVENT_SOURCE_WIREGUARD_UP);
 				} else if (state == 0 && priv->state.wireguard_interface_up) {
 					network_wireguard_state new_state;
 					memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
 					new_state.wireguard_interface_up = FALSE;
+					new_state.wireguard_interface_index = -1;
+					new_state.wireguard_running = FALSE;
 					wireguard_state_change(priv, NULL, new_state, EVENT_SOURCE_WIREGUARD_DOWN);
 				}
 			}
@@ -135,8 +146,6 @@ static gboolean netlink_cb(GIOChannel * chan, GIOCondition cond, gpointer data)
 			break;
 
 	}
-
-	(void)priv;
 
 	return TRUE;
 }
