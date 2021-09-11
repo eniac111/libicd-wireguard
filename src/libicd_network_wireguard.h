@@ -50,6 +50,7 @@ struct _network_wireguard_state {
 	/* We only have this status atm for handling netlink data, since I could not
 	 * parse it properly*/
 	gboolean wireguard_interface_up;
+	gint wireguard_interface_index;
 
 	gboolean gconf_transition_ongoing;
 
