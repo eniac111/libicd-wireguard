@@ -113,83 +113,85 @@ char *get_active_config(void)
 
 char *generate_config(const char *config_name)
 {
-#if 0
 	GConfClient *gconf;
-	gchar *torrc;
-	gboolean bridges_enabled, hs_enabled;
-	gint socks_port, control_port, trans_port, dns_port;
-	gchar *datadir, *bridges, *hiddenservices;
+	gchar config[8192];
+	gchar *address, *dns, *privatekey;
+	GSList *peers, *iter;
 
 	gconf = gconf_client_get_default();
 
-	gchar *gc_socksport = g_strjoin("/", GC_TOR, config_name, GC_SOCKSPORT, NULL);
-	socks_port = gconf_client_get_int(gconf, gc_socksport, NULL);
-	g_free(gc_socksport);
+	gchar *cfgpath = g_strjoin("/", GC_WIREGUARD, config_name, NULL);
 
-	gchar *gc_controlport = g_strjoin("/", GC_TOR, config_name, GC_CONTROLPORT, NULL);
-	control_port = gconf_client_get_int(gconf, gc_controlport, NULL);
-	g_free(gc_controlport);
+	/* Interface configuration */
+	gchar *gc_privatekey = g_strjoin("/", cfgpath, GC_PRIVATEKEY, NULL);
+	privatekey = gconf_client_get_string(gconf, gc_privatekey, NULL);
+	g_free(gc_privatekey);
 
-	gchar *gc_transport = g_strjoin("/", GC_TOR, config_name, GC_TRANSPORT, NULL);
-	trans_port = gconf_client_get_int(gconf, gc_transport, NULL);
-	g_free(gc_transport);
+	gchar *gc_address = g_strjoin("/", cfgpath, GC_ADDRESS, NULL);
+	address = gconf_client_get_string(gconf, gc_address, NULL);
+	g_free(gc_address);
 
-	gchar *gc_dnsport = g_strjoin("/", GC_TOR, config_name, GC_DNSPORT, NULL);
-	dns_port = gconf_client_get_int(gconf, gc_dnsport, NULL);
-	g_free(gc_dnsport);
+	gchar *gc_dns = g_strjoin("/", cfgpath, GC_DNS, NULL);
+	dns = gconf_client_get_string(gconf, gc_dns, NULL);
+	g_free(gc_dns);
 
-	gchar *gc_datadir = g_strjoin("/", GC_TOR, config_name, GC_DATADIR, NULL);
-	datadir = gconf_client_get_string(gconf, gc_datadir, NULL);
-	g_free(gc_datadir);
+	if (privatekey == NULL || address == NULL || dns == NULL)
+		goto out;
 
-	gchar *gc_bridgesenabled = g_strjoin("/", GC_TOR, config_name, GC_BRIDGESENABLED, NULL);
-	bridges_enabled = gconf_client_get_bool(gconf, gc_bridgesenabled, NULL);
-	g_free(gc_bridgesenabled);
+	strncat(config, "[Interface]", 12);
+	strncat(config, "\nPrivateKey = ", 15);
+	strncat(config, privatekey, strlen(privatekey));
+	strncat(config, "\nAddress = ", 12);
+	strncat(config, address, strlen(address));
+	strncat(config, "\nDNS = ", 8);
+	strncat(config, dns, strlen(dns));
+	strncat(config, "\n", 2);
 
-	if (bridges_enabled) {
-		gchar *gc_bridges = g_strjoin("/", GC_TOR, config_name, GC_BRIDGES, NULL);
-		bridges = gconf_client_get_string(gconf, gc_bridges, NULL);
-		g_free(gc_bridges);
-	} else {
-		bridges = "";
+	/* Peers configuration */
+	gchar *gc_peers = g_strjoin("/", cfgpath, GC_PEERS, NULL);
+	peers = gconf_client_all_dirs(gconf, gc_peers, NULL);
+	g_free(gc_peers);
+
+	if (peers == NULL)
+		goto out;
+
+	for (iter = peers; iter; iter = iter->next) {
+		gchar *gc_peer_ips = g_strjoin("/", iter->data, GC_PEER_IPS, NULL);
+		gchar *peer_ips = gconf_client_get_string(gconf, gc_peer_ips, NULL);
+		g_free(gc_peer_ips);
+
+		gchar *gc_endpoint = g_strjoin("/", iter->data, GC_PEER_ENDPOINT, NULL);
+		gchar *endpoint = gconf_client_get_string(gconf, gc_endpoint, NULL);
+		g_free(gc_endpoint);
+
+		gchar *gc_pubkey = g_strjoin("/", iter->data, GC_PEER_PUBKEY, NULL);
+		gchar *pubkey = gconf_client_get_string(gconf, gc_pubkey, NULL);
+		g_free(gc_pubkey);
+
+		g_free(iter->data);
+
+		if (peer_ips == NULL || endpoint == NULL || pubkey == NULL)
+			continue;
+
+		strncat(config, "\n[Peer]", 8);
+		strncat(config, "\nPublicKey = ", 14);
+		strncat(config, pubkey, strlen(pubkey));
+		strncat(config, "\nEndPoint = ", 13);
+		strncat(config, endpoint, strlen(endpoint));
+		strncat(config, "\nAllowedIPs = ", 15);
+		strncat(config, peer_ips, strlen(peer_ips));
+		strncat(config, "\n", 2);
 	}
 
-	gchar *gc_hsenabled = g_strjoin("/", GC_TOR, config_name, GC_HSENABLED, NULL);
-	hs_enabled = gconf_client_get_bool(gconf, gc_hsenabled, NULL);
-	g_free(gc_hsenabled);
+	g_slist_free(iter);
+	g_slist_free(peers);
 
-	if (hs_enabled) {
-		gchar *gc_hiddenservices = g_strjoin("/", GC_TOR, config_name, GC_HIDDENSERVICES,
-						     NULL);
-		hiddenservices = gconf_client_get_string(gconf, gc_hiddenservices, NULL);
-		g_free(gc_hiddenservices);
-	} else {
-		hiddenservices = "";
-	}
+ out:
+ 	g_free(cfgpath);
+ 	g_object_unref(gconf);
 
-	g_object_unref(gconf);
+	if (strlen(config) > 0)
+		return config;
 
-	torrc = g_strdup_printf(
-        /* "User debian-tor\n" */
-		"SocksPort %d\n"
-		"ControlPort %d\n"
-		"VirtualAddrNetworkIPv4 10.192.0.0/10\n"
-		"AutomapHostsOnResolve 1\n"
-		"TransPort %d IsolateClientAddr IsolateClientProtocol IsolateDestAddr IsolateDestPort\n"
-		"DNSPort %d\n"
-		"CookieAuthentication 1\n"
-		"DataDirectory %s\n" "%s\n"	/* bridges */
-		"%s\n",	/* hiddenservices */
-		socks_port,
-		control_port,
-		trans_port,
-		dns_port,
-		datadir,
-		bridges,
-		hiddenservices
-	);
-
-	return torrc;
-#endif
-    return NULL;
+ 	return NULL;
 }
