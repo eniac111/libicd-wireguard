@@ -134,19 +134,16 @@ void network_stop_all(wireguard_network_data * network_data)
 
 int startup_wireguard(wireguard_network_data * network_data, char *config)
 {
-	/* const char* config_filename = "/etc/wireguard/icdwg0.conf" */
-	/* char *config_content = generate_config(config); */
-	/* GError *error = NULL; */
+	const char *config_filename = "/etc/wireguard/icdwg0.conf";
+	GError *error = NULL;
+	char *config_content = generate_config(config);
 
-	/* TODO: Not actually writing the file yet */
-#if 0
 	g_file_set_contents(config_filename, config_content, strlen(config_content), &error);
 	if (error != NULL) {
 		g_clear_error(&error);
 		WN_WARN("Unable to write Wireguard config file\n");
 		return 1;
 	}
-#endif
 
 	char *argss[] = { "/usr/bin/wg-quick", "up", "icdwg0", NULL };
 	pid_t pid = spawn_as("root", "/usr/bin/wg-quick", argss);

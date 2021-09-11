@@ -89,7 +89,6 @@ static int read_event(int sockint, char **iface_name, int *iface_status, int *if
 static gboolean netlink_cb(GIOChannel * chan, GIOCondition cond, gpointer data)
 {
 	network_wireguard_private *priv = data;
-	fprintf(stderr, "netlink_cb\n");
 
 	int fd;
 	int state = 0;
@@ -102,8 +101,10 @@ static gboolean netlink_cb(GIOChannel * chan, GIOCondition cond, gpointer data)
 	 * read_event */
 	while (1) {
 		int ret = read_event(fd, &iface, &state, &index);
-		fprintf(stderr, "read_event: %d\n", ret);
 
+		/* Sometimes we cannot get the interface name since it is already gone
+		 * (at least with if_indextoname, so we remember the index and use that.
+		 * */
 		if (state == 0 && index == priv->state.wireguard_interface_index && priv->state.wireguard_interface_up) {
 			network_wireguard_state new_state;
 			memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
@@ -171,6 +172,8 @@ int open_netlink_listener(void *user_data)
 		/* TODO: bind() failed */
 	}
 
+	// TODO: when do we free addr here?
+
 	io = g_io_channel_unix_new(fd);
 	event_id = g_io_add_watch(io, G_IO_IN | G_IO_ERR | G_IO_HUP, netlink_cb, user_data);
 
@@ -182,5 +185,5 @@ int open_netlink_listener(void *user_data)
 
 void close_netlink_listener(void)
 {
-	// TODO
+	// TODO, unregister monitor, free GIOChannel, close socket, remove event_id
 }

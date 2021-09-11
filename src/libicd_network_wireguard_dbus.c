@@ -109,7 +109,7 @@ DBusHandlerResult stop_callback(DBusConnection * connection, DBusMessage * messa
 		return start_reply(WIREGUARD_DBUS_METHOD_STOP_RESULT_NOT_RUNNING, reply);
 	}
 
-	/* Actually stop Tor */
+	/* Actually stop Wireguard */
 	network_wireguard_state new_state;
 	memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
 	wireguard_state_change(priv, NULL, new_state, EVENT_SOURCE_DBUS_CALL_STOP);

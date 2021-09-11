@@ -120,6 +120,14 @@ void wireguard_state_change(network_wireguard_private * private,
 				} else {
 					new_state.gconf_transition_ongoing = TRUE;
 					network_stop_all(network_data);
+					/* TODO: review this, this is just ugly, but the reason we do this is
+					 * because we cannot detect interface going down if it never goes up
+					 * successfully, since we guard that with wireguard_interface_up, so
+					 * that needs fixing, but for now we work around it here */
+
+					new_state.wireguard_running = FALSE;
+					new_state.wireguard_up = FALSE;
+					new_state.wireguard_interface_up = FALSE;
 				}
 
 				emit_status_signal(new_state);
@@ -163,6 +171,13 @@ void wireguard_state_change(network_wireguard_private * private,
 		}
 
 		network_stop_all(network_data);
+		/* TODO: review this, this is just ugly, but the reason we do this is
+		 * because we cannot detect interface going down if it never goes up
+		 * successfully, since we guard that with wireguard_interface_up, so
+		 * that needs fixing, but for now we work around it here */
+		new_state.wireguard_running = FALSE;
+		new_state.wireguard_up = FALSE;
+		new_state.wireguard_interface_up = FALSE;
 	} else if (source == EVENT_SOURCE_WIREGUARD_UP) {
 		WN_INFO("Wireguard interface went up");
 
@@ -230,6 +245,15 @@ void wireguard_state_change(network_wireguard_private * private,
 
 				/* Maybe we should not free here */
 				new_state.iap_connected = FALSE;
+				network_stop_all(network_data);
+				/* TODO: review this, this is just ugly, but the reason we do this is
+				 * because we cannot detect interface going down if it never goes up
+				 * successfully, since we guard that with wireguard_interface_up, so
+				 * that needs fixing, but for now we work around it here */
+				new_state.wireguard_running = FALSE;
+				new_state.wireguard_up = FALSE;
+				new_state.wireguard_interface_up = FALSE;
+
 				network_free_all(network_data);
 
 				up_cb(ICD_NW_ERROR, NULL, up_token);
