@@ -74,7 +74,7 @@ static int read_event(int sockint, char **iface_name, int *iface_status, int *if
 
 			*iface_name = malloc(IF_NAMESIZE);
 			if (if_indextoname(info->ifi_index, *iface_name) == 0) {
-				fprintf(stderr, "if_indextoname failed\n");
+				WN_INFO("if_indextoname failed");
 				free(*iface_name);
 				*iface_name = NULL;
 
@@ -114,10 +114,10 @@ static gboolean netlink_cb(GIOChannel * chan, GIOCondition cond, gpointer data)
 			wireguard_state_change(priv, NULL, new_state, EVENT_SOURCE_WIREGUARD_DOWN);
 
 		} else if (iface) {
-			fprintf(stderr, "iface: %s (%d), status: %d\n", iface, index, state);
+			WN_DEBUG("iface: %s (%d), status: %d", iface, index, state);
 
 			if (strcmp("icdwg0", iface) == 0) {
-				fprintf(stderr, "wireguard_interface_up: %d\n", priv->state.wireguard_interface_up);
+				WN_DEBUG("wireguard_interface_up: %d", priv->state.wireguard_interface_up);
 
 				/* We check for the wireguard up state here, because I have not
 				 * figured out how to differentiate between interface created
