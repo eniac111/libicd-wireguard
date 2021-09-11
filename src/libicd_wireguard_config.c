@@ -191,7 +191,7 @@ char *generate_config(const char *config_name)
  	g_object_unref(gconf);
 
 	if (strlen(config) > 0)
-		return config;
+		return g_strdup(config);
 
  	return NULL;
 }
