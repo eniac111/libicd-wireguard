@@ -57,8 +57,8 @@ DBusHandlerResult start_callback(DBusConnection * connection, DBusMessage * mess
 
 	/* We are in provider mode */
 
-	/* Tor already running? */
-	if (priv->state.tor_running == TRUE) {
+	/* Wireguard already running? */
+	if (priv->state.wireguard_running == TRUE) {
 		return start_reply(WIREGUARD_DBUS_METHOD_START_RESULT_ALREADY_RUNNING, reply);
 	}
 
@@ -104,8 +104,8 @@ DBusHandlerResult stop_callback(DBusConnection * connection, DBusMessage * messa
 		return start_reply(WIREGUARD_DBUS_METHOD_STOP_RESULT_REFUSED, reply);
 	}
 
-	/* Tor not running? */
-	if (priv->state.tor_running == FALSE) {
+	/* Wireguard not running? */
+	if (priv->state.wireguard_running == FALSE) {
 		return start_reply(WIREGUARD_DBUS_METHOD_STOP_RESULT_NOT_RUNNING, reply);
 	}
 
@@ -130,13 +130,13 @@ DBusHandlerResult getstatus_callback(DBusConnection * connection, DBusMessage * 
 	}
 
 	/* TODO: DRY this */
-	if (!priv->state.tor_running) {
+	if (!priv->state.wireguard_running) {
 		state = ICD_WIREGUARD_SIGNALS_STATUS_STATE_STOPPED;
 	} else {
-		if (priv->state.tor_bootstrapped) {
-			state = ICD_WIREGUARD_SIGNALS_STATUS_STATE_CONNECTED;
-		} else {
+		if (priv->state.wg_quick_running) {
 			state = ICD_WIREGUARD_SIGNALS_STATUS_STATE_STARTED;
+		} else {
+			state = ICD_WIREGUARD_SIGNALS_STATUS_STATE_CONNECTED;
 		}
 	}
 
@@ -173,13 +173,13 @@ void emit_status_signal(network_wireguard_state state)
 	}
 
 	/* TODO: DRY this */
-	if (!state.tor_running) {
+	if (!state.wireguard_running) {
 		status = ICD_WIREGUARD_SIGNALS_STATUS_STATE_STOPPED;
 	} else {
-		if (state.tor_bootstrapped) {
-			status = ICD_WIREGUARD_SIGNALS_STATUS_STATE_CONNECTED;
-		} else {
+		if (state.wg_quick_running) {
 			status = ICD_WIREGUARD_SIGNALS_STATUS_STATE_STARTED;
+		} else {
+			status = ICD_WIREGUARD_SIGNALS_STATUS_STATE_CONNECTED;
 		}
 	}
 

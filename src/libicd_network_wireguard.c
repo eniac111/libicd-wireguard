@@ -22,7 +22,7 @@
 #include "libicd_network_wireguard.h"
 
 void wireguard_state_change(network_wireguard_private * private,
-		      wireguard_network_data * network_data, network_wireguard_state new_state, int source)
+			    wireguard_network_data * network_data, network_wireguard_state new_state, int source)
 {
 	network_wireguard_state current_state = private->state;
 
@@ -54,17 +54,14 @@ void wireguard_state_change(network_wireguard_private * private,
 
 					if (start_ret == 1) {
 						network_free_all(network_data);
-					} else if (start_ret == 2) {
-						network_stop_all(network_data);
-						network_free_all(network_data);
 					}
 
 					new_state.iap_connected = FALSE;
 					up_cb(ICD_NW_ERROR, NULL, up_token);
 				} else {
-					new_state.tor_running = TRUE;
-					new_state.tor_bootstrapped_running = TRUE;
-					new_state.tor_bootstrapped = FALSE;
+					new_state.wg_quick_running = TRUE;
+					new_state.wireguard_running = TRUE;
+					new_state.wireguard_up = FALSE;
 					/* ip_up_cb will be called later in the bootstrap pid exit */
 				}
 			} else {
@@ -82,17 +79,16 @@ void wireguard_state_change(network_wireguard_private * private,
 		network_stop_all(network_data);
 		network_free_all(network_data);
 
-		new_state.tor_running = FALSE;
-		new_state.tor_bootstrapped_running = FALSE;
-		new_state.tor_bootstrapped = FALSE;
-
+		new_state.wireguard_up = FALSE;
+		new_state.wg_quick_running = FALSE;
+		new_state.wireguard_running = FALSE;
 		new_state.service_provider_mode = FALSE;
 
 		down_cb(ICD_NW_SUCCESS, down_token);
 
 		emit_status_signal(new_state);
 	} else if (source == EVENT_SOURCE_GCONF_CHANGE) {
-		WN_INFO("Tor system_wide status changed via gconf");
+		WN_INFO("Wireguard system_wide status changed via gconf");
 
 		/* We don't act on this in service provider mode */
 		if (!current_state.service_provider_mode && current_state.iap_connected) {
@@ -116,12 +112,10 @@ void wireguard_state_change(network_wireguard_private * private,
 								  network_data->network_type,
 								  network_data->network_attrs,
 								  network_data->network_id);
-					} else if (start_ret == 2) {
-						network_stop_all(network_data);
 					} else if (start_ret == 0) {
-						new_state.tor_running = TRUE;
-						new_state.tor_bootstrapped_running = TRUE;
-						new_state.tor_bootstrapped = FALSE;
+						new_state.wg_quick_running = TRUE;
+						new_state.wireguard_running = TRUE;
+						new_state.wireguard_up = FALSE;
 					}
 				} else {
 					new_state.gconf_transition_ongoing = TRUE;
@@ -151,9 +145,9 @@ void wireguard_state_change(network_wireguard_private * private,
 			goto done;
 		}
 
-		new_state.tor_running = TRUE;
-		new_state.tor_bootstrapped_running = TRUE;
-		new_state.tor_bootstrapped = FALSE;
+		new_state.wg_quick_running = TRUE;
+		new_state.wireguard_running = TRUE;
+		new_state.wireguard_up = FALSE;
 
 		emit_status_signal(new_state);
 	} else if (source == EVENT_SOURCE_DBUS_CALL_STOP) {
@@ -169,36 +163,51 @@ void wireguard_state_change(network_wireguard_private * private,
 		}
 
 		network_stop_all(network_data);
-	} else if (source == EVENT_SOURCE_TOR_PID_EXIT) {
+	} else if (source == EVENT_SOURCE_WIREGUARD_UP) {
+		WN_INFO("Wireguard interface went up");
+
+		wireguard_network_data *network_data = icd_wireguard_find_first_network_data(private);
+		if (network_data == NULL) {
+			WN_ERR("We have no network data");
+			goto done;
+		}
+
+		emit_status_signal(new_state);
+	} else if (source == EVENT_SOURCE_WIREGUARD_DOWN) {
+		WN_INFO("Wireguard interface went down");
+
+		wireguard_network_data *network_data = icd_wireguard_find_first_network_data(private);
+		if (network_data == NULL) {
+			WN_ERR("We have no network data");
+			goto done;
+		}
+
 		/* In service provider mode, I suppose this is fatal, but we can just
 		 * emit the signal and have the service provider bring down the network */
 
-		if (!current_state.tor_running) {
-			WN_ERR("Received tor pid exit but we don't think it was running");
+		if (!current_state.wireguard_running) {
+			WN_ERR("Received wireguard interface down but we did not know it was up");
 			/* Figure out how to handle this */
 		} else {
-			network_data->tor_pid = 0;
-
 			if (current_state.service_provider_mode) {
 				/* Nothing more to do, service provider will pick it up */
 			} else if (current_state.gconf_transition_ongoing) {
 				new_state.gconf_transition_ongoing = FALSE;
 			} else {
-				/* This will call tor_disconnect, so we don't free/stop here, since
+				/* This will call ip down, so we don't free/stop here, since
 				 * ip_down should be called */
 				private->close_cb(ICD_NW_ERROR,
-						  "Tor process quit (unexpectedly)",
+						  "Wireguard interface down (unexpectedly)",
 						  network_data->network_type,
 						  network_data->network_attrs, network_data->network_id);
 			}
-
 		}
 
 		emit_status_signal(new_state);
-	} else if (source == EVENT_SOURCE_TOR_BOOTSTRAPPED_PID_EXIT) {
-		network_data->wait_for_tor_pid = 0;
+	} else if (source == EVENT_SOURCE_WIREGUARD_QUICK_PID_EXIT) {
+		network_data->wg_quick_pid = 0;
 
-		if (new_state.tor_bootstrapped) {
+		if (new_state.wireguard_up) {
 			new_state.iap_connected = TRUE;
 
 			if (current_state.service_provider_mode) {
@@ -250,10 +259,10 @@ void wireguard_state_change(network_wireguard_private * private,
  * @param private a reference to the icd_nw_api private memeber
  */
 static void wireguard_ip_up(const gchar * network_type,
-		      const guint network_attrs,
-		      const gchar * network_id,
-		      const gchar * interface_name,
-		      icd_nw_ip_up_cb_fn ip_up_cb, gpointer ip_up_cb_token, gpointer * private)
+			    const guint network_attrs,
+			    const gchar * network_id,
+			    const gchar * interface_name,
+			    icd_nw_ip_up_cb_fn ip_up_cb, gpointer ip_up_cb_token, gpointer * private)
 {
 	network_wireguard_private *priv = *private;
 	WN_DEBUG("wireguard_ip_up");
@@ -302,14 +311,14 @@ static void wireguard_ip_up(const gchar * network_type,
  */
 static void
 wireguard_ip_down(const gchar * network_type, guint network_attrs,
-	    const gchar * network_id, const gchar * interface_name,
-	    icd_nw_ip_down_cb_fn ip_down_cb, gpointer ip_down_cb_token, gpointer * private)
+		  const gchar * network_id, const gchar * interface_name,
+		  icd_nw_ip_down_cb_fn ip_down_cb, gpointer ip_down_cb_token, gpointer * private)
 {
 	WN_DEBUG("wireguard_ip_down");
 	network_wireguard_private *priv = *private;
 
 	wireguard_network_data *network_data = icd_wireguard_find_network_data(network_type, network_attrs, network_id,
-								   priv);
+									       priv);
 
 	network_data->ip_down_cb = ip_down_cb;
 	network_data->ip_down_cb_token = ip_down_cb_token;
@@ -357,19 +366,15 @@ static void wireguard_child_exit(const pid_t pid, const gint exit_status, gpoint
 	network_wireguard_private *priv = *private;
 	wireguard_network_data *network_data;
 
-	enum pidtype { UNKNOWN, TOR_PID, WAIT_FOR_TOR_PID };
+	enum pidtype { UNKNOWN, WG_QUICK_PID };
 
 	int pid_type = UNKNOWN;
 
 	for (l = priv->network_data_list; l; l = l->next) {
 		network_data = (wireguard_network_data *) l->data;
 		if (network_data) {
-			if (network_data->tor_pid == pid) {
-				pid_type = TOR_PID;
-				break;
-			}
-			if (network_data->wait_for_tor_pid == pid) {
-				pid_type = WAIT_FOR_TOR_PID;
+			if (network_data->wg_quick_pid == pid) {
+				pid_type = WG_QUICK_PID;
 				break;
 			}
 			/* Do we want to do anything with unknown pids? */
@@ -378,40 +383,30 @@ static void wireguard_child_exit(const pid_t pid, const gint exit_status, gpoint
 			/* This can happen if we are manually disconnecting, and we already
 			   free the network data and kill tor, then we won't have the
 			   network_data anymore */
-			WN_DEBUG("tor_child_exit: network_data_list contains empty network_data");
+			WN_DEBUG("wireguard_child_exit: network_data_list contains empty network_data");
 		}
 	}
 
 	if (!l) {
-		WN_ERR("tor_child_exit: got pid %d but did not find network_data\n", pid);
+		WN_ERR("wireguard_child_exit: got pid %d but did not find network_data\n", pid);
 		return;
 	}
 
-	if (pid_type == TOR_PID) {
-		WN_INFO("Tor process stopped");
+	if (pid_type == WG_QUICK_PID) {
+		WN_INFO("Got wg-quick pid: %d with status %d", pid, exit_status);
 
 		network_wireguard_state new_state;
 		memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
-		new_state.tor_running = FALSE;
-		new_state.tor_bootstrapped = FALSE;
-
-		wireguard_state_change(priv, network_data, new_state, EVENT_SOURCE_TOR_PID_EXIT);
-	} else if (pid_type == WAIT_FOR_TOR_PID) {
-
-		WN_INFO("Got wait-for-tor pid: %d with status %d", pid, exit_status);
-
-		network_wireguard_state new_state;
-		memcpy(&new_state, &priv->state, sizeof(network_wireguard_state));
-		new_state.tor_bootstrapped_running = FALSE;
+		new_state.wg_quick_running = FALSE;
 
 		if (exit_status == 0) {
-			new_state.tor_bootstrapped = TRUE;
+			new_state.wireguard_up = TRUE;
 		} else {
-			WN_WARN("wait-for-tor failed with %d\n", exit_status);
-			new_state.tor_bootstrapped = FALSE;
+			WN_WARN("wg-quick failed with %d\n", exit_status);
+			new_state.wireguard_up = FALSE;
 		}
 
-		wireguard_state_change(priv, network_data, new_state, EVENT_SOURCE_TOR_BOOTSTRAPPED_PID_EXIT);
+		wireguard_state_change(priv, network_data, new_state, EVENT_SOURCE_WIREGUARD_QUICK_PID_EXIT);
 	}
 
 	return;
@@ -452,9 +447,10 @@ gboolean icd_nw_init(struct icd_nw_api *network_api,
 	priv->state.iap_connected = FALSE;
 	priv->state.service_provider_mode = FALSE;
 
-	priv->state.tor_running = FALSE;
-	priv->state.tor_bootstrapped_running = FALSE;
-	priv->state.tor_bootstrapped = FALSE;
+	priv->state.wg_quick_running = FALSE;
+	priv->state.wireguard_running = FALSE;
+	priv->state.wireguard_up = FALSE;
+	priv->state.wireguard_interface_up = FALSE;
 	priv->state.gconf_transition_ongoing = FALSE;
 	priv->state.dbus_failed_to_start = FALSE;
 
@@ -478,6 +474,8 @@ gboolean icd_nw_init(struct icd_nw_api *network_api,
 		WN_ERR("Could not request dbus interface");
 		goto err;
 	}
+
+	open_netlink_listener(priv);
 
 	network_api->network_destruct = wireguard_network_destruct;
 	network_api->child_exit = wireguard_child_exit;

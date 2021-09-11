@@ -232,9 +232,7 @@ wireguard_provider_statuschanged_sig(DBusConnection * connection, DBusMessage * 
 		/* We could get an unexpected stop, or the expected start (after we
 		 * start it */
 		if (network_data->state > new_state) {
-			/* Tor quit, let's throw down the interface */
-
-			priv->close_fn(ICD_SRV_ERROR, "Tor process quit (unexpectedly)",
+			priv->close_fn(ICD_SRV_ERROR, "Wireguard stopped (unexpectedly)",
 				       network_data->service_type,
 				       network_data->service_attrs,
 				       network_data->service_id,

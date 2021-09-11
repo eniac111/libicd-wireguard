@@ -24,6 +24,7 @@ libicd_network_wireguard_la_SOURCES = \
 	libicd_network_wireguard.c \
 	libicd_network_wireguard_helpers.c \
 	libicd_network_wireguard_dbus.c \
+	libicd_network_wireguard_netlink.c \
 	libicd_network_wireguard.h \
 	dbus_wireguard.c \
 	dbus_wireguard.h \

@@ -43,9 +43,13 @@ struct _network_wireguard_state {
 	gboolean iap_connected;
 	gboolean service_provider_mode;
 
-	gboolean tor_running;
-	gboolean tor_bootstrapped_running;
-	gboolean tor_bootstrapped;
+	gboolean wg_quick_running;
+	gboolean wireguard_running;
+	gboolean wireguard_up;
+
+	/* We only have this status atm for handling netlink data, since I could not
+	 * parse it properly*/
+	gboolean wireguard_interface_up;
 
 	gboolean gconf_transition_ongoing;
 
@@ -90,13 +94,7 @@ struct _wireguard_network_data {
 	gpointer ip_down_cb_token;
 
 	/* Tor pid */
-	pid_t tor_pid;
-
-	/* Tor command auth pw/token */
-	char *tor_stem_auth;
-
-	/* "Wait for Tor" stem script */
-	pid_t wait_for_tor_pid;
+	pid_t wg_quick_pid;
 
 	/* For matching / callbacks later on (like close and limited_conn callback) */
 	gchar *network_type;
@@ -109,8 +107,8 @@ gboolean icd_nw_init(struct icd_nw_api *network_api,
 		     icd_nw_watch_pid_fn watch_fn, gpointer watch_fn_token,
 		     icd_nw_close_fn close_fn, icd_nw_status_change_fn status_change_fn, icd_nw_renew_fn renew_fn);
 
-void wireguard_state_change(network_wireguard_private * private, wireguard_network_data * network_data, network_wireguard_state new_state,
-		      int source);
+void wireguard_state_change(network_wireguard_private * private, wireguard_network_data * network_data,
+			    network_wireguard_state new_state, int source);
 
 /* Helpers */
 void network_stop_all(wireguard_network_data * network_data);
@@ -118,8 +116,8 @@ void network_free_all(wireguard_network_data * network_data);
 pid_t spawn_as(const char *username, const char *pathname, char *args[]);
 wireguard_network_data *icd_wireguard_find_first_network_data(network_wireguard_private * private);
 wireguard_network_data *icd_wireguard_find_network_data(const gchar * network_type,
-					    guint network_attrs,
-					    const gchar * network_id, network_wireguard_private * private);
+							guint network_attrs,
+							const gchar * network_id, network_wireguard_private * private);
 gboolean string_equal(const char *a, const char *b);
 int startup_wireguard(wireguard_network_data * network_data, char *config);
 
@@ -127,9 +125,9 @@ enum icd_wireguard_event_source_type {
 	EVENT_SOURCE_IP_UP,
 	EVENT_SOURCE_IP_DOWN,
 	EVENT_SOURCE_GCONF_CHANGE,
-    // XXX rename
-	EVENT_SOURCE_TOR_PID_EXIT,
-	EVENT_SOURCE_TOR_BOOTSTRAPPED_PID_EXIT,
+	EVENT_SOURCE_WIREGUARD_UP,
+	EVENT_SOURCE_WIREGUARD_DOWN,
+	EVENT_SOURCE_WIREGUARD_QUICK_PID_EXIT,
 	EVENT_SOURCE_DBUS_CALL_START,
 	EVENT_SOURCE_DBUS_CALL_STOP,
 };
@@ -139,5 +137,8 @@ DBusHandlerResult start_callback(DBusConnection * connection, DBusMessage * mess
 DBusHandlerResult stop_callback(DBusConnection * connection, DBusMessage * message, void *user_data);
 DBusHandlerResult getstatus_callback(DBusConnection * connection, DBusMessage * message, void *user_data);
 void emit_status_signal(network_wireguard_state state);
+
+int open_netlink_listener(void *user_data);
+void close_netlink_listener(void);
 
 #endif
