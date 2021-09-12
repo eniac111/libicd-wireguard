@@ -26,33 +26,35 @@
 
 #include "libicd_wireguard.h"
 
-gboolean config_is_known(const char* config_name) {
+gboolean config_is_known(const char *config_name)
+{
 	GConfClient *gconf_client;
-    GSList *providers = NULL, *l = NULL;
-    gboolean match = FALSE;
+	GSList *providers = NULL, *l = NULL;
+	gboolean match = FALSE;
 
 	gconf_client = gconf_client_get_default();
 
-    providers = gconf_client_get_list(gconf_client, GC_ICD_WIREGUARD_AVAILABLE_IDS, GCONF_VALUE_STRING, NULL);
-    for (l = providers; l; l = l->next) {
-        if (!strcmp(l->data, config_name)) {
-            match = TRUE;
-            break;
-        }
-    }
-    g_slist_free_full(providers, g_free);
+	providers = gconf_client_get_list(gconf_client, GC_ICD_WIREGUARD_AVAILABLE_IDS, GCONF_VALUE_STRING, NULL);
+	for (l = providers; l; l = l->next) {
+		if (!strcmp(l->data, config_name)) {
+			match = TRUE;
+			break;
+		}
+	}
+	g_slist_free_full(providers, g_free);
 	g_object_unref(gconf_client);
 
-    return match;
+	return match;
 }
 
-gboolean network_is_wireguard_provider(const char* network_id, char **ret_gconf_service_id) {
+gboolean network_is_wireguard_provider(const char *network_id, char **ret_gconf_service_id)
+{
 	GConfClient *gconf_client;
 	gchar *iap_gconf_key;
 	char *gconf_service_type = NULL;
 	char *gconf_service_id = NULL;
-    gboolean service_id_known = FALSE;
-    gboolean match = FALSE;
+	gboolean service_id_known = FALSE;
+	gboolean match = FALSE;
 
 	gconf_client = gconf_client_get_default();
 
@@ -65,22 +67,22 @@ gboolean network_is_wireguard_provider(const char* network_id, char **ret_gconf_
 	g_free(iap_gconf_key);
 	g_object_unref(gconf_client);
 
-    service_id_known = gconf_service_id && config_is_known(gconf_service_id);
+	service_id_known = gconf_service_id && config_is_known(gconf_service_id);
 
-    if (ret_gconf_service_id)
-        *ret_gconf_service_id = g_strdup(gconf_service_id);
+	if (ret_gconf_service_id)
+		*ret_gconf_service_id = g_strdup(gconf_service_id);
 
-    match = service_id_known && (g_strcmp0(WIREGUARD_PROVIDER_TYPE, gconf_service_type) == 0);
+	match = service_id_known && (g_strcmp0(WIREGUARD_PROVIDER_TYPE, gconf_service_type) == 0);
 
-    if (gconf_service_type) {
-        g_free(gconf_service_type);
-    }
+	if (gconf_service_type) {
+		g_free(gconf_service_type);
+	}
 
-    if (gconf_service_id) {
-        g_free(gconf_service_id);
-    }
+	if (gconf_service_id) {
+		g_free(gconf_service_id);
+	}
 
-    return match;
+	return match;
 }
 
 gboolean get_system_wide_enabled(void)
@@ -189,11 +191,11 @@ char *generate_config(const char *config_name)
 	g_slist_free(peers);
 
  out:
- 	g_free(cfgpath);
- 	g_object_unref(gconf);
+	g_free(cfgpath);
+	g_object_unref(gconf);
 
 	if (strlen(config) > 0)
 		return g_strdup(config);
 
- 	return NULL;
+	return NULL;
 }
