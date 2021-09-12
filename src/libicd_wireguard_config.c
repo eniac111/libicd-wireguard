@@ -135,7 +135,7 @@ char *generate_config(const char *config_name)
 	dns = gconf_client_get_string(gconf, gc_dns, NULL);
 	g_free(gc_dns);
 
-	if (privatekey == NULL || address == NULL || dns == NULL)
+	if (privatekey == NULL || address == NULL)
 		goto out;
 
 	strncat(config, "[Interface]", 12);
@@ -143,9 +143,11 @@ char *generate_config(const char *config_name)
 	strncat(config, privatekey, strlen(privatekey));
 	strncat(config, "\nAddress = ", 12);
 	strncat(config, address, strlen(address));
-	strncat(config, "\nDNS = ", 8);
-	strncat(config, dns, strlen(dns));
-	strncat(config, "\n", 2);
+	if (dns) {
+		strncat(config, "\nDNS = ", 8);
+		strncat(config, dns, strlen(dns));
+		strncat(config, "\n", 2);
+	}
 
 	/* Peers configuration */
 	gchar *gc_peers = g_strjoin("/", cfgpath, GC_PEERS, NULL);
