@@ -1,3 +1,9 @@
+libicd-wireguard (0.1.1) unstable; urgency=medium
+
+  * Fix corruption when generation configuration
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Thu, 23 Sep 2021 17:19:39 +0200
+
 libicd-wireguard (0.1) unstable; urgency=medium
 
   * Initial release of libicd-network-wireguard and libicd-provider-wireguard
