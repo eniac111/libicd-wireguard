@@ -139,6 +139,7 @@ int startup_wireguard(wireguard_network_data * network_data, char *config)
 	char *config_content = generate_config(config);
 
 	g_file_set_contents(config_filename, config_content, strlen(config_content), &error);
+	free(config_content);
 	if (error != NULL) {
 		g_clear_error(&error);
 		WN_WARN("Unable to write Wireguard config file\n");

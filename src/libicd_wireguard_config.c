@@ -140,6 +140,7 @@ char *generate_config(const char *config_name)
 	if (privatekey == NULL || address == NULL)
 		goto out;
 
+	memset(config, '\0', sizeof(config));
 	strncat(config, "[Interface]", 12);
 	strncat(config, "\nPrivateKey = ", 15);
 	strncat(config, privatekey, strlen(privatekey));
