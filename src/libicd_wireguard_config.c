@@ -24,7 +24,7 @@
 #include <glib.h>
 #include <gconf/gconf-client.h>
 
-#include "libicd_wireguard.h"
+#include "libicd_network_wireguard.h"
 
 gboolean config_is_known(const char *config_name)
 {
@@ -117,12 +117,29 @@ char *generate_config(const char *config_name)
 {
 	GConfClient *gconf;
 	gchar config[8192];
-	gchar *address, *dns, *privatekey;
+	gchar *address, *dns, *privatekey, *configoverride;
 	GSList *peers, *iter;
 
 	gconf = gconf_client_get_default();
 
 	gchar *cfgpath = g_strjoin("/", GC_WIREGUARD, config_name, NULL);
+
+	gchar *gc_configoverride = g_strjoin("/", cfgpath, GC_CONFIG_FILE_OVERRIDE, NULL);
+	configoverride = gconf_client_get_string(gconf, gc_configoverride, NULL);
+	g_free(gc_configoverride);
+
+	if (configoverride) {
+		GError *error = NULL;
+		char *config_contents = NULL;
+		g_file_get_contents(configoverride, &config_contents, NULL, &error);
+		if (error != NULL) {
+			WN_WARN("Unable to read config override: %s\n", error->message);
+			g_clear_error(&error);
+			return NULL;
+		}
+
+		return config_contents;
+	}
 
 	/* Interface configuration */
 	gchar *gc_privatekey = g_strjoin("/", cfgpath, GC_PRIVATEKEY, NULL);

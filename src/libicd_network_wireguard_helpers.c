@@ -136,7 +136,13 @@ int startup_wireguard(wireguard_network_data * network_data, char *config)
 {
 	const char *config_filename = "/etc/wireguard/icdwg0.conf";
 	GError *error = NULL;
+
 	char *config_content = generate_config(config);
+
+	if (!config_content) {
+		WN_WARN("Unable to generate config\n");
+		return 1;
+	}
 
 	g_file_set_contents(config_filename, config_content, strlen(config_content), &error);
 	free(config_content);
