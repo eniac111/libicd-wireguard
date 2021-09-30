@@ -16,13 +16,8 @@ Section: net
 Architecture: any
 Multi-Arch: same
 Depends:
- ${shlibs:Depends},
- icd2,
- wireguard-dkms,
- wireguard,
- wireguard-tools,
  libicd-network-wireguard,
- ${shlibs:Depends}
+ ${shlibs:Depends},
 Description: ICd2 wireguard service provider configuration module
  ICd2 wireguard service provider configuration module
 
@@ -36,6 +31,7 @@ Depends:
  wireguard-dkms,
  wireguard,
  wireguard-tools,
+ resolvconf,
 Description: ICd2 wireguard network configuration module
  ICd2 wireguard network configuration module
 
