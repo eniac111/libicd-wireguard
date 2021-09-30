@@ -1,3 +1,9 @@
+libicd-wireguard (0.1.2) unstable; urgency=medium
+
+  * Support config override
+
+ -- Merlijn Wajer <merlijn@wizzup.org>  Thu, 30 Sep 2021 14:44:56 +0200
+
 libicd-wireguard (0.1.1) unstable; urgency=medium
 
   * Fix corruption when generation configuration
