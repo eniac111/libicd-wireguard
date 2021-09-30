@@ -41,7 +41,6 @@
 #define GC_CFG_ADDRESS       "Address"
 
 #define GC_CONFIG_FILE_OVERRIDE "config_file_override"
-#define GC_SYSTUNNEL     "systemtunnel-enabled"
 #define GC_ADDRESS       "Address"
 #define GC_DNS           "DNS"
 #define GC_PRIVATEKEY    "PrivateKey"
