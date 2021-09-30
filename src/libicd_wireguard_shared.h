@@ -36,6 +36,11 @@
 #define GC_WIREGUARD_ACTIVE  GC_NETWORK_TYPE"/active_config"
 #define GC_WIREGUARD_SYSTEM  GC_NETWORK_TYPE"/system_wide_enabled"
 
+#define GC_CFG_DNS           "DNS"
+#define GC_CFG_PRIVATEKEY    "PrivateKey"
+#define GC_CFG_ADDRESS       "Address"
+
+#define GC_CONFIG_FILE_OVERRIDE "config_file_override"
 #define GC_SYSTUNNEL     "systemtunnel-enabled"
 #define GC_ADDRESS       "Address"
 #define GC_DNS           "DNS"
@@ -44,6 +49,7 @@
 #define GC_PEER_IPS      "AllowedIPs"
 #define GC_PEER_ENDPOINT "EndPoint"
 #define GC_PEER_PUBKEY   "PublicKey"
+#define GC_PEER_PSK      "PresharedKey"
 
 #define ICD_WIREGUARD_DBUS_INTERFACE "org.maemo.Wireguard"
 #define ICD_WIREGUARD_DBUS_PATH "/org/maemo/Wireguard"
