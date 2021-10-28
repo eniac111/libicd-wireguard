@@ -28,8 +28,6 @@ Multi-Arch: same
 Depends:
  ${shlibs:Depends},
  icd2,
- wireguard-dkms,
- wireguard,
  wireguard-tools,
  resolvconf,
 Description: ICd2 wireguard network configuration module
