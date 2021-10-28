@@ -30,6 +30,7 @@ Depends:
  icd2,
  wireguard-tools,
  resolvconf,
+ maemo-system-services-dev,
 Description: ICd2 wireguard network configuration module
  ICd2 wireguard network configuration module
 
