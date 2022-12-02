@@ -1,4 +1,7 @@
 libicd-wireguard (0.1.2) unstable; urgency=medium
+  * Compatibility with GCC 10
+ -- Blagovest Petrov <blagovest@petrovs.info> Fri, 2 Dec 2022 16:22:08 +0300
+libicd-wireguard (0.1.2) unstable; urgency=medium
 
   * Support config override
 
